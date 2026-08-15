@@ -22,3 +22,17 @@ npm start
 ```
 
 Open http://localhost:3000. For production, set a strong `JWT_SECRET`, put SQLite on a persistent volume, and monitor `/api/health` and `/api/ready`. The event table is intentionally simple so it can later be replaced with PostHog or another analytics provider without changing the UI contract.
+
+## Live demo
+
+Open [the live demo](http://localhost:3000/?demo=1) after starting the app. One click provisions a realistic, read/write workspace called **The Next Chapter** with 12 members, 47 applications, 18 companies, 9 interviews, and 2 offers.
+
+The demo is deterministic and safe to run repeatedly. It uses local `@careerboard.local` accounts and does not require an email inbox. For a fresh database, the same flow is available from the **Explore the live demo** button on the sign-in screen.
+
+## Product tour
+
+![CareerBoard sign-in](docs/screenshots/careerboard-auth.png)
+
+![CareerBoard populated dashboard](docs/screenshots/careerboard-dashboard.png)
+
+The dashboard is the starting point for the application board, team members, comments, interviews, activity history, and analytics summary. Click any application to explore its shared context and comments.

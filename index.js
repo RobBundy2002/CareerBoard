@@ -32,6 +32,14 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS notifications (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, team_id TEXT NOT NULL, type TEXT NOT NULL, message TEXT NOT NULL, read_at TEXT, created_at TEXT NOT NULL);
 `);
 
+// Existing installations may have been created before joined_at was added.
+// CREATE TABLE IF NOT EXISTS does not update an existing table's schema.
+const teamMemberColumns = db.prepare('PRAGMA table_info(team_members)').all();
+if (!teamMemberColumns.some(column => column.name === 'joined_at')) {
+  db.exec("ALTER TABLE team_members ADD COLUMN joined_at TEXT NOT NULL DEFAULT ''");
+  db.exec("UPDATE team_members SET joined_at = COALESCE((SELECT created_at FROM teams WHERE teams.id = team_members.team_id), datetime('now')) WHERE joined_at = ''");
+}
+
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '100kb' }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: true, legacyHeaders: false }));
@@ -44,6 +52,36 @@ const verifyHash = (value, stored) => { const [salt, key] = stored.split(':'); c
 const publicUser = user => ({ id: user.id, name: user.name, email: user.email });
 const tokenFor = user => jwt.sign({ userId: user.id, jti: id() }, jwtSecret, { expiresIn: '7d' });
 const bodyText = value => typeof value === 'string' ? value.trim() : '';
+
+function seedDemoData() {
+  const demoTeam = { id: 'demo-team', name: 'The Next Chapter', created_at: '2026-01-05T09:00:00.000Z' };
+  const names = ['Maya Chen', 'Jordan Lee', 'Avery Brooks', 'Sam Rivera', 'Priya Shah', 'Noah Williams', 'Elena Rossi', 'Theo Martin', 'Grace Kim', 'Marcus Johnson', 'Sofia Alvarez', 'Ben Carter'];
+  const companies = ['Linear', 'Notion', 'Stripe', 'Vercel', 'Figma', 'Loom', 'Arc', 'Ramp', 'Airbnb', 'Dropbox', 'Webflow', 'Plaid', 'OpenAI', 'GitLab', 'Mercury', 'Anthropic', 'Brex', 'Asana'];
+  const roles = ['Product Designer', 'Frontend Engineer', 'Growth Lead', 'Product Manager', 'Researcher', 'Operations Manager', 'Content Strategist', 'Data Analyst'];
+  const statusesForDemo = ['Offer', 'Offer', ...Array(9).fill('Interview'), ...Array(20).fill('Applied'), ...Array(10).fill('Saved'), ...Array(6).fill('Rejected')];
+  db.transaction(() => {
+    db.prepare('INSERT OR IGNORE INTO teams (id,name,created_at) VALUES (?,?,?)').run(demoTeam.id, demoTeam.name, demoTeam.created_at);
+    names.forEach((name, index) => {
+      const user = { id: `demo-user-${String(index + 1).padStart(2, '0')}`, name, email: `demo${index + 1}@careerboard.local`, password_hash: hash('demo-password-2026'), created_at: '2026-01-05T09:00:00.000Z' };
+      db.prepare('INSERT OR IGNORE INTO users (id,name,email,password_hash,created_at) VALUES (@id,@name,@email,@password_hash,@created_at)').run(user);
+      db.prepare('INSERT OR IGNORE INTO team_members (team_id,user_id,role,joined_at) VALUES (?,?,?,?)').run(demoTeam.id, user.id, index === 0 ? 'owner' : index < 3 ? 'admin' : 'member', `2026-01-${String(5 + index).padStart(2, '0')}T09:00:00.000Z`);
+    });
+    companies.forEach((name, index) => db.prepare('INSERT OR IGNORE INTO companies (id,name,website) VALUES (?,?,?)').run(`demo-company-${String(index + 1).padStart(2, '0')}`, name, `https://${name.toLowerCase().replace(/[^a-z]+/g, '')}.com`));
+    for (let index = 0; index < 47; index += 1) {
+      const appId = `demo-application-${String(index + 1).padStart(2, '0')}`;
+      const companyId = `demo-company-${String((index % companies.length) + 1).padStart(2, '0')}`;
+      const jobId = `demo-job-${String(index + 1).padStart(2, '0')}`;
+      const ownerId = `demo-user-${String((index % names.length) + 1).padStart(2, '0')}`;
+      const appliedAt = `2026-02-${String((index % 26) + 1).padStart(2, '0')}T10:00:00.000Z`;
+      db.prepare('INSERT OR IGNORE INTO jobs (id,company_id,title,url,location) VALUES (?,?,?,?,?)').run(jobId, companyId, roles[index % roles.length], `https://example.com/demo/${index + 1}`, ['Remote', 'New York', 'San Francisco', 'London'][index % 4]);
+      db.prepare('INSERT OR IGNORE INTO applications (id,team_id,job_id,owner_id,status,salary,next_step,notes,applied_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)').run(appId, demoTeam.id, jobId, ownerId, statusesForDemo[index], index % 3 === 0 ? '$120k–$165k' : '', statusesForDemo[index] === 'Interview' ? 'Prepare story bank' : statusesForDemo[index] === 'Offer' ? 'Review the offer' : '', index % 4 === 0 ? 'A strong mission fit and a thoughtful team.' : '', appliedAt, appliedAt);
+      if (index < 9) db.prepare('INSERT OR IGNORE INTO interviews (id,application_id,scheduled_at,kind,notes,created_by) VALUES (?,?,?,?,?,?)').run(`demo-interview-${String(index + 1).padStart(2, '0')}`, appId, `2026-03-${String(index + 10).padStart(2, '0')}T16:00:00.000Z`, index % 2 ? 'Panel' : 'Hiring manager', 'Bring portfolio and questions.', ownerId);
+      if (index < 12) db.prepare('INSERT OR IGNORE INTO comments (id,application_id,user_id,body,created_at) VALUES (?,?,?,?,?)').run(`demo-comment-${String(index + 1).padStart(2, '0')}`, appId, `demo-user-${String((index + 2) % names.length + 1).padStart(2, '0')}`, index < 2 ? 'This one feels like a real fit. Let us know how we can help.' : 'Shared the role with the group — good luck!', `2026-03-${String((index % 9) + 1).padStart(2, '0')}T12:00:00.000Z`);
+      db.prepare('INSERT OR IGNORE INTO activity (id,team_id,application_id,user_id,action,metadata,created_at) VALUES (?,?,?,?,?,?,?)').run(`demo-activity-${String(index + 1).padStart(2, '0')}`, demoTeam.id, appId, ownerId, index < 2 ? 'received an offer' : statusesForDemo[index] === 'Interview' ? 'moved an application to Interview' : 'added an application', '{}', appliedAt);
+    }
+  })();
+  return db.prepare('SELECT * FROM users WHERE id=?').get('demo-user-01');
+}
 
 function auth(req, res, next) {
   try {
@@ -66,12 +104,14 @@ const applicationQuery = `SELECT a.*, c.name company_name, c.website, j.title jo
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', database: 'ok', version: process.env.APP_VERSION || '1.0.0', uptime: Math.floor((Date.now() - startedAt) / 1000) }));
 app.get('/api/ready', (_req, res) => { try { db.prepare('SELECT 1').get(); res.json({ status: 'ready', database: 'ok' }); } catch { res.status(503).json({ status: 'not_ready', database: 'error' }); } });
 
+app.post('/api/auth/demo', (_req, res) => { const user = seedDemoData(); res.json({ token: tokenFor(user), user: publicUser(user), team: { id: 'demo-team', name: 'The Next Chapter', role: 'owner' } }); });
+
 app.post('/api/auth/register', (req, res) => {
   const name = bodyText(req.body.name); const email = bodyText(req.body.email).toLowerCase(); const password = req.body.password; const teamName = bodyText(req.body.teamName) || 'My job search';
   if (!name || !email.includes('@') || typeof password !== 'string' || password.length < 10) return res.status(400).json({ error: 'Name, valid email, and a 10+ character password are required.' });
   if (db.prepare('SELECT id FROM users WHERE email=?').get(email)) return res.status(409).json({ error: 'An account with that email already exists.' });
   const user = { id: id(), name, email, password_hash: hash(password), created_at: now() }; const team = { id: id(), name: teamName, created_at: now() };
-  db.transaction(() => { db.prepare('INSERT INTO users VALUES (@id,@name,@email,@password_hash,@created_at)').run(user); db.prepare('INSERT INTO teams VALUES (@id,@name,@created_at)').run(team); db.prepare('INSERT INTO team_members VALUES (?,?,?,?)').run(team.id, user.id, 'owner', now()); })();
+  db.transaction(() => { db.prepare('INSERT INTO users VALUES (@id,@name,@email,@password_hash,@created_at)').run(user); db.prepare('INSERT INTO teams VALUES (@id,@name,@created_at)').run(team); db.prepare('INSERT INTO team_members (team_id,user_id,role,joined_at) VALUES (?,?,?,?)').run(team.id, user.id, 'owner', now()); })();
   res.status(201).json({ token: tokenFor(user), user: publicUser(user), team: { ...team, role: 'owner' } });
 });
 app.post('/api/auth/login', (req, res) => { const user = db.prepare('SELECT * FROM users WHERE email=?').get(bodyText(req.body.email).toLowerCase()); if (!user || !req.body.password || !verifyHash(req.body.password, user.password_hash)) return res.status(401).json({ error: 'Invalid email or password.' }); res.json({ token: tokenFor(user), user: publicUser(user), team: teamFor(user.id) }); });
@@ -82,7 +122,7 @@ app.post('/api/notifications/:id/read', auth, (req, res) => { db.prepare('UPDATE
 
 app.get('/api/teams/:teamId/members', auth, requireRole('owner', 'admin', 'member'), (req, res) => res.json(db.prepare('SELECT u.id,u.name,u.email,tm.role,tm.joined_at FROM users u JOIN team_members tm ON tm.user_id=u.id WHERE tm.team_id=? ORDER BY tm.joined_at').all(req.team.id)));
 app.post('/api/teams/:teamId/invitations', auth, requireRole('owner', 'admin'), (req, res) => { const email = bodyText(req.body.email).toLowerCase(); const role = roles.includes(req.body.role) && req.body.role !== 'owner' ? req.body.role : 'member'; if (!email.includes('@')) return res.status(400).json({ error: 'A valid email is required.' }); const rawToken = crypto.randomBytes(32).toString('hex'); db.prepare('INSERT INTO invitations VALUES (?,?,?,?,?,?,?,?)').run(id(), req.team.id, email, role, req.user.userId, hash(rawToken), new Date(Date.now() + 7 * 864e5).toISOString(), null); recordActivity(req.team.id, req.user.userId, 'invited a member', null, { email, role }); recordEvent(req.team.id, req.user.userId, 'user_invited', { role }); res.status(201).json({ email, role, inviteToken: rawToken, message: 'Share this one-time invite token with the teammate.' }); });
-app.post('/api/invitations/accept', auth, (req, res) => { const user = db.prepare('SELECT email FROM users WHERE id=?').get(req.user.userId); const invitation = db.prepare('SELECT * FROM invitations WHERE email=? AND accepted_at IS NULL AND expires_at>? ORDER BY expires_at DESC').get(user.email, now()); const match = invitation && verifyHash(bodyText(req.body.inviteToken), invitation.token_hash) ? invitation : null; if (!match) return res.status(400).json({ error: 'Invite token is invalid, expired, or not for this account.' }); db.transaction(() => { db.prepare('INSERT OR IGNORE INTO team_members VALUES (?,?,?,?)').run(match.team_id, req.user.userId, match.role, now()); db.prepare('UPDATE invitations SET accepted_at=? WHERE id=?').run(now(), match.id); })(); recordActivity(match.team_id, req.user.userId, 'joined the team'); res.json({ ok: true, team: db.prepare('SELECT * FROM teams WHERE id=?').get(match.team_id) }); });
+app.post('/api/invitations/accept', auth, (req, res) => { const user = db.prepare('SELECT email FROM users WHERE id=?').get(req.user.userId); const invitation = db.prepare('SELECT * FROM invitations WHERE email=? AND accepted_at IS NULL AND expires_at>? ORDER BY expires_at DESC').get(user.email, now()); const match = invitation && verifyHash(bodyText(req.body.inviteToken), invitation.token_hash) ? invitation : null; if (!match) return res.status(400).json({ error: 'Invite token is invalid, expired, or not for this account.' }); db.transaction(() => { db.prepare('INSERT OR IGNORE INTO team_members (team_id,user_id,role,joined_at) VALUES (?,?,?,?)').run(match.team_id, req.user.userId, match.role, now()); db.prepare('UPDATE invitations SET accepted_at=? WHERE id=?').run(now(), match.id); })(); recordActivity(match.team_id, req.user.userId, 'joined the team'); res.json({ ok: true, team: db.prepare('SELECT * FROM teams WHERE id=?').get(match.team_id) }); });
 app.post('/api/teams/:teamId/members/:userId/role', auth, requireRole('owner', 'admin'), (req, res) => { const role = req.body.role; if (!roles.includes(role) || role === 'owner' && req.team.role !== 'owner') return res.status(400).json({ error: 'Invalid role change.' }); const target = membership(req.params.userId, req.team.id); if (!target || target.role === 'owner') return res.status(400).json({ error: 'That member cannot be changed.' }); db.prepare('UPDATE team_members SET role=? WHERE team_id=? AND user_id=?').run(role, req.team.id, req.params.userId); recordActivity(req.team.id, req.user.userId, `changed ${req.params.userId} role to ${role}`); res.json({ ok: true }); });
 app.delete('/api/teams/:teamId/members/:userId', auth, requireRole('owner', 'admin'), (req, res) => { const result = db.prepare("DELETE FROM team_members WHERE team_id=? AND user_id=? AND role!='owner'").run(req.team.id, req.params.userId); if (!result.changes) return res.status(404).json({ error: 'Member not found or protected.' }); recordActivity(req.team.id, req.user.userId, 'removed a member'); res.status(204).end(); });
 
