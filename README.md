@@ -39,7 +39,7 @@ The demo is deterministic and safe to run repeatedly. It uses local `@careerboar
 
 ## Product tour
 
-![CareerBoard sign-in](docs/screenshots/careerboard-v2-auth.png)
+![CareerBoard welcome](docs/screenshots/careerboard-welcome.png)
 
 ![CareerBoard populated dashboard](docs/screenshots/careerboard-dashboard.png)
 
