@@ -40,6 +40,31 @@ if (!teamMemberColumns.some(column => column.name === 'joined_at')) {
   db.exec("UPDATE team_members SET joined_at = COALESCE((SELECT created_at FROM teams WHERE teams.id = team_members.team_id), datetime('now')) WHERE joined_at = ''");
 }
 
+// Migrate the original denormalized applications table to the current model.
+// Older databases stored company, role, and created_by directly on applications.
+const applicationColumns = db.prepare('PRAGMA table_info(applications)').all();
+if (!applicationColumns.some(column => column.name === 'job_id')) {
+  db.transaction(() => {
+    db.exec('ALTER TABLE applications RENAME TO applications_legacy');
+    db.exec("CREATE TABLE applications (id TEXT PRIMARY KEY, team_id TEXT NOT NULL, job_id TEXT NOT NULL, owner_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'Applied', salary TEXT DEFAULT '', next_step TEXT DEFAULT '', notes TEXT DEFAULT '', applied_at TEXT NOT NULL, updated_at TEXT NOT NULL)");
+    const legacyApplications = db.prepare('SELECT * FROM applications_legacy').all();
+    const companyIds = new Map();
+    for (const application of legacyApplications) {
+      let companyId = companyIds.get(application.company);
+      if (!companyId) {
+        const existingCompany = db.prepare('SELECT id FROM companies WHERE name=?').get(application.company);
+        companyId = existingCompany?.id || crypto.randomUUID();
+        if (!existingCompany) db.prepare('INSERT INTO companies (id,name,website) VALUES (?,?,?)').run(companyId, application.company, '');
+        companyIds.set(application.company, companyId);
+      }
+      const jobId = crypto.randomUUID();
+      db.prepare('INSERT INTO jobs (id,company_id,title,url,location) VALUES (?,?,?,?,?)').run(jobId, companyId, application.role, application.url || '', application.location || '');
+      db.prepare('INSERT INTO applications (id,team_id,job_id,owner_id,status,salary,next_step,notes,applied_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)').run(application.id, application.team_id, jobId, application.created_by, application.status, application.salary || '', application.next_step || '', application.notes || '', application.applied_at, application.updated_at);
+    }
+    db.exec('DROP TABLE applications_legacy');
+  })();
+}
+
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '100kb' }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: true, legacyHeaders: false }));

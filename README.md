@@ -2,6 +2,10 @@
 
 CareerBoard is a multi-tenant collaborative job-search workspace for career groups. Owners and admins invite members, members manage their own applications, and the whole team can collaborate through comments, activity history, interviews, and analytics.
 
+> Collaborative job-search workspace for career groups — track applications, interviews, team activity, and shared job-search intelligence.
+
+Topics: `career` `job-search` `job-tracker` `saas` `collaboration` `nodejs` `sqlite` `authentication` `rbac` `full-stack`
+
 ## Included
 
 - Password authentication with expiring, revocable signed tokens
@@ -12,6 +16,7 @@ CareerBoard is a multi-tenant collaborative job-search workspace for career grou
 - Security headers, request-size limits, rate limiting, validation, and structured error logging
 - GitHub Actions CI for checks, tests, dependency audit, and Docker builds
 - Docker deployment configuration with `/api/health` and `/api/ready` probes
+- Product UI with a persistent search/team shell, application board, detail workspaces, activity, notifications, people, companies, analytics, onboarding, shortcuts, themes, and mobile navigation
 
 ## Run locally
 
