@@ -1,16 +1,17 @@
 # CareerBoard
 
-CareerBoard is a collaborative job-application tracker for career groups. Members can keep applications in one shared pipeline, record next steps, and see progress over time.
+CareerBoard is a multi-tenant collaborative job-search workspace for career groups. Owners and admins invite members, members manage their own applications, and the whole team can collaborate through comments, activity history, interviews, and analytics.
 
 ## Included
 
-- Password authentication with signed sessions
-- SQLite persistence for users, teams, applications, and product events
-- JSON API for auth, applications, health checks, and analytics
-- Responsive frontend with Saved → Applied → Interview → Offer → Rejected pipeline
-- First-party event analytics stored in the database
-- `/api/health` endpoint for uptime monitoring
-- Docker deployment configuration
+- Password authentication with expiring, revocable signed tokens
+- Owner/admin/member authorization checked against team membership on every route
+- Relational SQLite model: users, teams, memberships, invitations, companies, jobs, applications, comments, interviews, activity, and analytics events
+- JSON API for collaboration, applications, comments, interviews, health, readiness, and analytics
+- Durable SQLite job queue with an in-process worker for in-app comment and interview notifications
+- Security headers, request-size limits, rate limiting, validation, and structured error logging
+- GitHub Actions CI for checks, tests, dependency audit, and Docker builds
+- Docker deployment configuration with `/api/health` and `/api/ready` probes
 
 ## Run locally
 
@@ -20,4 +21,4 @@ cp .env.example .env
 npm start
 ```
 
-Open http://localhost:3000. For production, set a strong `JWT_SECRET`, put SQLite on a persistent volume, and monitor `/api/health` with an uptime service. The event table is intentionally simple so it can later be replaced with PostHog or another analytics provider without changing the UI contract.
+Open http://localhost:3000. For production, set a strong `JWT_SECRET`, put SQLite on a persistent volume, and monitor `/api/health` and `/api/ready`. The event table is intentionally simple so it can later be replaced with PostHog or another analytics provider without changing the UI contract.
