@@ -1,0 +1,9 @@
+{
+  "name": "untitled",
+  "version": "1.0.0",
+  "description": "A collaborative job application tracker for career groups.",
+  "main": "index.js",
+  "scripts": { "start": "node index.js", "dev": "node --watch index.js", "check": "node --check index.js" },
+  "dependencies": { "better-sqlite3": "^11.8.1", "express": "^4.21.2", "jsonwebtoken": "^9.0.2" },
+  "private": true
+}
