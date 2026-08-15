@@ -2,9 +2,7 @@
 
 CareerBoard is a multi-tenant collaborative job-search workspace for career groups. Owners and admins invite members, members manage their own applications, and the whole team can collaborate through comments, activity history, interviews, and analytics.
 
-> Collaborative job-search workspace for career groups — track applications, interviews, team activity, and shared job-search intelligence.
-
-Topics: `career` `job-search` `job-tracker` `saas` `collaboration` `nodejs` `sqlite` `authentication` `rbac` `full-stack`
+> Collaborative job-search workspace for career groups: track applications, interviews, team activity, and shared job-search intelligence.
 
 ## Included
 
