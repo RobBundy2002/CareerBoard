@@ -1,5 +1,10 @@
 # CareerBoard
 
+[![CI](https://github.com/RobBundy2002/career/actions/workflows/ci.yml/badge.svg)](https://github.com/RobBundy2002/career/actions/workflows/ci.yml)
+[![Node.js](https://img.shields.io/badge/Node.js-22%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![SQLite](https://img.shields.io/badge/SQLite-WAL-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+
 CareerBoard is a multi-tenant collaborative job-search workspace for career groups. Owners and admins invite members, members manage their own applications, and the whole team can collaborate through comments, activity history, interviews, and analytics.
 
 > Collaborative job-search workspace for career groups: track applications, interviews, team activity, and shared job-search intelligence.
