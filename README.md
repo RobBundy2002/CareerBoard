@@ -33,7 +33,9 @@ Open http://localhost:3000. For production, set a strong `JWT_SECRET`, put SQLit
 
 ## Live demo
 
-Open [the live demo](http://localhost:3000/?demo=1) after starting the app. One click provisions a realistic, read/write workspace called **The Next Chapter** with 12 members, 47 applications, 18 companies, 9 interviews, and 2 offers.
+Open the [static GitHub Pages demo](https://robbundy2002.github.io/career/) to explore the CareerBoard interface with realistic fake data. It is a presentation demo and does not write to the application database.
+
+For the full local read/write demo, start the app and open [the local demo](http://localhost:3000/?demo=1). One click provisions a realistic workspace called **The Next Chapter** with 12 members, 47 applications, 18 companies, 9 interviews, and 2 offers.
 
 The demo is deterministic and safe to run repeatedly. It uses local `@careerboard.local` accounts and does not require an email inbox. For a fresh database, the same flow is available from the **Explore the live demo** button on the sign-in screen.
 
